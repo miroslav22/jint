@@ -349,7 +349,7 @@ namespace Jint.Native
             // if no known type could be guessed, wrap it as an ObjectInstance
             var h = engine.Options._WrapObjectHandler;
             ObjectInstance o = h != null ? h(value) : null;
-            return o ?? new ObjectWrapper(engine, value);
+            return o ?? new ObjectWrapper(engine, value) {Extensible = true};
         }
 
         private static JsValue Convert(Engine e, object v)

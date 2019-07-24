@@ -9,6 +9,7 @@ namespace Jint.Runtime.Descriptors.Specialized
         private readonly Engine _engine;
         private readonly PropertyInfo _propertyInfo;
         private readonly object _item;
+        private object _overriddenValue;
 
         public PropertyInfoDescriptor(Engine engine, PropertyInfo propertyInfo, object item) : base(PropertyFlag.CustomJsValue)
         {
@@ -21,7 +22,7 @@ namespace Jint.Runtime.Descriptors.Specialized
 
         protected internal override JsValue CustomValue
         {
-            get => JsValue.FromObject(_engine, _propertyInfo.GetValue(_item, null));
+            get => JsValue.FromObject(_engine, _overriddenValue ?? _propertyInfo.GetValue(_item, null));
             set
             {
                 var currentValue = value;
@@ -36,11 +37,18 @@ namespace Jint.Runtime.Descriptors.Specialized
                     obj = currentValue.ToObject();
                     if (obj != null && obj.GetType() != _propertyInfo.PropertyType)
                     {
-                        obj = _engine.ClrTypeConverter.Convert(obj, _propertyInfo.PropertyType, CultureInfo.InvariantCulture);
+                        if (_engine.ClrTypeConverter.TryConvert(obj, _propertyInfo.PropertyType, CultureInfo.InvariantCulture, out var convertedObject) == false)
+                        {
+                            _overriddenValue = obj;
+                            return;
+                        }
+
+                        obj = convertedObject;
                     }
                 }
 
                 _propertyInfo.SetValue(_item, obj, null);
+                _overriddenValue = null;
             }
         }
     }

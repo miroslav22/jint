@@ -14,6 +14,8 @@ namespace Jint.Runtime.Interop
 	/// </summary>
 	public sealed class ObjectWrapper : ObjectInstance, IObjectWrapper
     {
+        private HashSet<string> _deletedProperties;
+
         public ObjectWrapper(Engine engine, object obj)
             : base(engine)
         {
@@ -32,8 +34,29 @@ namespace Jint.Runtime.Interop
 
         internal override bool IsArrayLike { get; }
 
+        public override bool Delete(string propertyName, bool throwOnError)
+        {
+            var deletedProperties = _deletedProperties ?? (_deletedProperties = new HashSet<string>());
+            var commonPropertyName = char.ToLowerInvariant(propertyName[0]) + (propertyName.Length > 1 ? propertyName.Substring(1) : "");
+
+            if (deletedProperties.Contains(commonPropertyName) == false)
+                deletedProperties.Add(commonPropertyName);
+
+            return true;
+        }
+
         public override void Put(string propertyName, JsValue value, bool throwOnError)
         {
+            var commonPropertyName = char.ToLowerInvariant(propertyName[0]) + (propertyName.Length > 1 ? propertyName.Substring(1) : "");
+
+            if (_deletedProperties?.Contains(commonPropertyName) == true)
+            {
+                _deletedProperties.Remove(commonPropertyName);
+
+                if (_deletedProperties.Count == 0)
+                    _deletedProperties = null;
+            }
+
             if (!CanPut(propertyName))
             {
                 if (throwOnError)
@@ -55,12 +78,24 @@ namespace Jint.Runtime.Interop
             }
             else
             {
+                //  If property was previously undefined then we want to initialize it
+                if (ownDesc == PropertyDescriptor.Undefined)
+                {
+                    ownDesc = new PropertyDescriptor(value, true, true, true);
+                    FastSetProperty(propertyName, ownDesc);
+                }
+
                 ownDesc.Value = value;
             }
         }
 
         public override PropertyDescriptor GetOwnProperty(string propertyName)
         {
+            var commonPropertyName = char.ToLowerInvariant(propertyName[0]) + (propertyName.Length > 1 ? propertyName.Substring(1) : "");
+
+            if (_deletedProperties?.Contains(commonPropertyName) == true)
+                return PropertyDescriptor.Undefined;
+
             if (TryGetProperty(propertyName, out var x))
             {
                 return x;

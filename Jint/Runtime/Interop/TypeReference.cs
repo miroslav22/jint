@@ -12,6 +12,8 @@ namespace Jint.Runtime.Interop
 {
     public sealed class TypeReference : FunctionInstance, IConstructor, IObjectWrapper
     {
+        private HashSet<string> _deletedProperties;
+
         private TypeReference(Engine engine)
             : base(engine, "typereference", null, null, false, "TypeReference")
         {
@@ -22,7 +24,7 @@ namespace Jint.Runtime.Interop
         public static TypeReference CreateTypeReference(Engine engine, Type type)
         {
             var obj = new TypeReference(engine);
-            obj.Extensible = false;
+            obj.Extensible = true;
             obj.ReferenceType = type;
 
             // The value of the [[Prototype]] internal property of the TypeReference constructor is the Function prototype object
@@ -120,16 +122,27 @@ namespace Jint.Runtime.Interop
 
         public override bool Delete(string propertyName, bool throwOnError)
         {
-            if (throwOnError)
-            {
-                ExceptionHelper.ThrowTypeError(_engine, "Can't delete a property of a TypeReference");
-            }
+            var deletedProperties = _deletedProperties ?? (_deletedProperties = new HashSet<string>());
+            var commonPropertyName = char.ToLowerInvariant(propertyName[0]) + (propertyName.Length > 1 ? propertyName.Substring(1) : "");
 
-            return false;
+            if (deletedProperties.Contains(commonPropertyName) == false)
+                deletedProperties.Add(commonPropertyName);
+
+            return true;
         }
 
         public override void Put(string propertyName, JsValue value, bool throwOnError)
         {
+            var commonPropertyName = char.ToLowerInvariant(propertyName[0]) + (propertyName.Length > 1 ? propertyName.Substring(1) : "");
+
+            if (_deletedProperties?.Contains(commonPropertyName) == true)
+            {
+                _deletedProperties.Remove(commonPropertyName);
+
+                if (_deletedProperties.Count == 0)
+                    _deletedProperties = null;
+            }
+
             if (!CanPut(propertyName))
             {
                 if (throwOnError)
@@ -154,11 +167,28 @@ namespace Jint.Runtime.Interop
                 }
             }
 
+            //  If property was previously undefined then we want to initialize it
+            if (ownDesc == PropertyDescriptor.Undefined)
+            {
+                ownDesc = new PropertyDescriptor(value, true, true, true);
+                FastSetProperty(propertyName, ownDesc);
+            }
+
             ownDesc.Value = value;
         }
 
         public override PropertyDescriptor GetOwnProperty(string propertyName)
         {
+            var commonPropertyName = char.ToLowerInvariant(propertyName[0]) + (propertyName.Length > 1 ? propertyName.Substring(1) : "");
+
+            if (_deletedProperties?.Contains(commonPropertyName) == true)
+                return PropertyDescriptor.Undefined;
+
+            if (TryGetProperty(propertyName, out var x))
+            {
+                return x;
+            }
+
             // todo: cache members locally
 
             if (ReferenceType.IsEnum)
@@ -176,22 +206,24 @@ namespace Jint.Runtime.Interop
                 return PropertyDescriptor.Undefined;
             }
 
-            var propertyInfo = ReferenceType.GetProperty(propertyName, BindingFlags.Public | BindingFlags.Static);
-            if (propertyInfo != null)
+            foreach (var p in ReferenceType.GetProperties(BindingFlags.Static | BindingFlags.Public))
             {
-                return new PropertyInfoDescriptor(Engine, propertyInfo, Type);
+                if (EqualsIgnoreCasing(p.Name, propertyName))
+                    return new PropertyInfoDescriptor(Engine, p, Type);
             }
 
-            var fieldInfo = ReferenceType.GetField(propertyName, BindingFlags.Public | BindingFlags.Static);
-            if (fieldInfo != null)
+
+            foreach (var f in ReferenceType.GetFields(BindingFlags.Static | BindingFlags.Public))
             {
-                return new FieldInfoDescriptor(Engine, fieldInfo, Type);
+                if (EqualsIgnoreCasing(f.Name, propertyName))
+                    return new FieldInfoDescriptor(Engine, f, Type);
             }
+
 
             List<MethodInfo> methodInfo = null;
             foreach (var mi in ReferenceType.GetMethods(BindingFlags.Public | BindingFlags.Static))
             {
-                if (mi.Name == propertyName)
+                if (EqualsIgnoreCasing(mi.Name, propertyName))
                 {
                     methodInfo = methodInfo ?? new List<MethodInfo>();
                     methodInfo.Add(mi);
@@ -207,5 +239,22 @@ namespace Jint.Runtime.Interop
         }
 
         public object Target => ReferenceType;
+
+        private static bool EqualsIgnoreCasing(string s1, string s2)
+        {
+            bool equals = false;
+            if (s1.Length == s2.Length)
+            {
+                if (s1.Length > 0)
+                {
+                    equals = char.ToLowerInvariant(s1[0]) == char.ToLowerInvariant(s2[0]);
+                }
+                if (equals && s1.Length > 1)
+                {
+                    equals = s1.Substring(1) == s2.Substring(1);
+                }
+            }
+            return equals;
+        }
     }
 }

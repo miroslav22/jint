@@ -19,5 +19,12 @@ namespace Jint.IntegrationTests
         public int TestMethod2(int parm1, int parm2) => parm1 * parm2;
 
         public static int StaticMethod1() => 66;
+
+        public string StringProperty => "hello";
+        public bool BoolProperty => true;
+        public object NullProperty => null;
+        public object DoubleProperty => 55.5d;
+
+        public Encoding getEncoding() => Encoding.UTF8;
     }
 }

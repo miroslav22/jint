@@ -36,22 +36,22 @@ namespace Jint.Runtime.Interop
 
         public override bool Delete(string propertyName, bool throwOnError)
         {
+            propertyName = propertyName.ToLowerInvariant();
             var deletedProperties = _deletedProperties ?? (_deletedProperties = new HashSet<string>());
-            var commonPropertyName = char.ToLowerInvariant(propertyName[0]) + (propertyName.Length > 1 ? propertyName.Substring(1) : "");
 
-            if (deletedProperties.Contains(commonPropertyName) == false)
-                deletedProperties.Add(commonPropertyName);
+            if (deletedProperties.Contains(propertyName) == false)
+                deletedProperties.Add(propertyName);
 
             return true;
         }
 
         public override void Put(string propertyName, JsValue value, bool throwOnError)
         {
-            var commonPropertyName = char.ToLowerInvariant(propertyName[0]) + (propertyName.Length > 1 ? propertyName.Substring(1) : "");
+            propertyName = propertyName.ToLowerInvariant();
 
-            if (_deletedProperties?.Contains(commonPropertyName) == true)
+            if (_deletedProperties?.Contains(propertyName) == true)
             {
-                _deletedProperties.Remove(commonPropertyName);
+                _deletedProperties.Remove(propertyName);
 
                 if (_deletedProperties.Count == 0)
                     _deletedProperties = null;
@@ -91,9 +91,9 @@ namespace Jint.Runtime.Interop
 
         public override PropertyDescriptor GetOwnProperty(string propertyName)
         {
-            var commonPropertyName = char.ToLowerInvariant(propertyName[0]) + (propertyName.Length > 1 ? propertyName.Substring(1) : "");
+            propertyName = propertyName.ToLowerInvariant();
 
-            if (_deletedProperties?.Contains(commonPropertyName) == true)
+            if (_deletedProperties?.Contains(propertyName) == true)
                 return PropertyDescriptor.Undefined;
 
             if (TryGetProperty(propertyName, out var x))
@@ -126,7 +126,7 @@ namespace Jint.Runtime.Interop
                 PropertyInfo property = null;
                 foreach (var p in type.GetProperties(BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public))
                 {
-                    if (EqualsIgnoreCasing(p.Name, propertyName))
+                    if (p.Name.ToLowerInvariant() == propertyName)
                     {
                         property = p;
                         break;
@@ -142,7 +142,7 @@ namespace Jint.Runtime.Interop
                 FieldInfo field = null;
                 foreach (var f in type.GetFields(BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public))
                 {
-                    if (EqualsIgnoreCasing(f.Name, propertyName))
+                    if (f.Name.ToLowerInvariant() == propertyName)
                     {
                         field = f;
                         break;
@@ -158,7 +158,7 @@ namespace Jint.Runtime.Interop
                 List<MethodInfo> methods = null;
                 foreach (var m in type.GetMethods(BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public))
                 {
-                    if (EqualsIgnoreCasing(m.Name, propertyName))
+                    if (m.Name.ToLowerInvariant() == propertyName)
                     {
                         methods = methods ?? new List<MethodInfo>();
                         methods.Add(m);
@@ -194,7 +194,7 @@ namespace Jint.Runtime.Interop
             {
                 foreach (var iprop in iface.GetProperties())
                 {
-                    if (EqualsIgnoreCasing(iprop.Name, propertyName))
+                    if (iprop.Name.ToLowerInvariant() == propertyName)
                     {
                         list = list ?? new List<PropertyInfo>();
                         list.Add(iprop);
@@ -213,7 +213,7 @@ namespace Jint.Runtime.Interop
             {
                 foreach (var imethod in iface.GetMethods())
                 {
-                    if (EqualsIgnoreCasing(imethod.Name, propertyName))
+                    if (imethod.Name.ToLowerInvariant() == propertyName)
                     {
                         explicitMethods = explicitMethods ?? new List<MethodInfo>();
                         explicitMethods.Add(imethod);
@@ -248,21 +248,5 @@ namespace Jint.Runtime.Interop
             return (engine, target) => PropertyDescriptor.Undefined;
         }
 
-        private static bool EqualsIgnoreCasing(string s1, string s2)
-        {
-            bool equals = false;
-            if (s1.Length == s2.Length)
-            {
-                if (s1.Length > 0)
-                {
-                    equals = char.ToLowerInvariant(s1[0]) == char.ToLowerInvariant(s2[0]);
-                }
-                if (equals && s1.Length > 1)
-                {
-                    equals = s1.Substring(1) == s2.Substring(1);
-                }
-            }
-            return equals;
-        }
     }
 }

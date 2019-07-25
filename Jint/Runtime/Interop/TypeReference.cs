@@ -122,22 +122,22 @@ namespace Jint.Runtime.Interop
 
         public override bool Delete(string propertyName, bool throwOnError)
         {
+            propertyName = propertyName.ToLowerInvariant();
             var deletedProperties = _deletedProperties ?? (_deletedProperties = new HashSet<string>());
-            var commonPropertyName = char.ToLowerInvariant(propertyName[0]) + (propertyName.Length > 1 ? propertyName.Substring(1) : "");
 
-            if (deletedProperties.Contains(commonPropertyName) == false)
-                deletedProperties.Add(commonPropertyName);
+            if (deletedProperties.Contains(propertyName) == false)
+                deletedProperties.Add(propertyName);
 
             return true;
         }
 
         public override void Put(string propertyName, JsValue value, bool throwOnError)
         {
-            var commonPropertyName = char.ToLowerInvariant(propertyName[0]) + (propertyName.Length > 1 ? propertyName.Substring(1) : "");
+            propertyName = propertyName.ToLowerInvariant();
 
-            if (_deletedProperties?.Contains(commonPropertyName) == true)
+            if (_deletedProperties?.Contains(propertyName) == true)
             {
-                _deletedProperties.Remove(commonPropertyName);
+                _deletedProperties.Remove(propertyName);
 
                 if (_deletedProperties.Count == 0)
                     _deletedProperties = null;
@@ -179,9 +179,9 @@ namespace Jint.Runtime.Interop
 
         public override PropertyDescriptor GetOwnProperty(string propertyName)
         {
-            var commonPropertyName = char.ToLowerInvariant(propertyName[0]) + (propertyName.Length > 1 ? propertyName.Substring(1) : "");
+            propertyName = propertyName.ToLowerInvariant();
 
-            if (_deletedProperties?.Contains(commonPropertyName) == true)
+            if (_deletedProperties?.Contains(propertyName) == true)
                 return PropertyDescriptor.Undefined;
 
             if (TryGetProperty(propertyName, out var x))
@@ -189,8 +189,15 @@ namespace Jint.Runtime.Interop
                 return x;
             }
 
-            // todo: cache members locally
+            var descriptor = CreatePropertyDescriptor(propertyName);
 
+            FastSetProperty(propertyName, descriptor);
+
+            return descriptor;
+        }
+
+        private PropertyDescriptor CreatePropertyDescriptor(string propertyName)
+        {
             if (ReferenceType.IsEnum)
             {
                 Array enumValues = Enum.GetValues(ReferenceType);
@@ -200,7 +207,7 @@ namespace Jint.Runtime.Interop
                 {
                     if (enumNames.GetValue(i) as string == propertyName)
                     {
-                        return new PropertyDescriptor((int) enumValues.GetValue(i), PropertyFlag.AllForbidden);
+                        return new PropertyDescriptor((int)enumValues.GetValue(i), PropertyFlag.AllForbidden);
                     }
                 }
                 return PropertyDescriptor.Undefined;
@@ -208,14 +215,14 @@ namespace Jint.Runtime.Interop
 
             foreach (var p in ReferenceType.GetProperties(BindingFlags.Static | BindingFlags.Public))
             {
-                if (EqualsIgnoreCasing(p.Name, propertyName))
+                if (p.Name.ToLowerInvariant() == propertyName)
                     return new PropertyInfoDescriptor(Engine, p, Type);
             }
 
 
             foreach (var f in ReferenceType.GetFields(BindingFlags.Static | BindingFlags.Public))
             {
-                if (EqualsIgnoreCasing(f.Name, propertyName))
+                if (f.Name.ToLowerInvariant() == propertyName)
                     return new FieldInfoDescriptor(Engine, f, Type);
             }
 
@@ -223,7 +230,7 @@ namespace Jint.Runtime.Interop
             List<MethodInfo> methodInfo = null;
             foreach (var mi in ReferenceType.GetMethods(BindingFlags.Public | BindingFlags.Static))
             {
-                if (EqualsIgnoreCasing(mi.Name, propertyName))
+                if (mi.Name.ToLowerInvariant() == propertyName)
                 {
                     methodInfo = methodInfo ?? new List<MethodInfo>();
                     methodInfo.Add(mi);
@@ -240,21 +247,5 @@ namespace Jint.Runtime.Interop
 
         public object Target => ReferenceType;
 
-        private static bool EqualsIgnoreCasing(string s1, string s2)
-        {
-            bool equals = false;
-            if (s1.Length == s2.Length)
-            {
-                if (s1.Length > 0)
-                {
-                    equals = char.ToLowerInvariant(s1[0]) == char.ToLowerInvariant(s2[0]);
-                }
-                if (equals && s1.Length > 1)
-                {
-                    equals = s1.Substring(1) == s2.Substring(1);
-                }
-            }
-            return equals;
-        }
     }
 }

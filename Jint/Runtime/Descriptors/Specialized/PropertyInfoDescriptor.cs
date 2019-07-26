@@ -17,7 +17,7 @@ namespace Jint.Runtime.Descriptors.Specialized
             _propertyInfo = propertyInfo;
             _item = item;
 
-            Writable = propertyInfo.CanWrite && engine.Options._IsClrWriteAllowed;
+            Writable = true;
         }
 
         protected internal override JsValue CustomValue

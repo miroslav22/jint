@@ -16,6 +16,7 @@ namespace Jint.IntegrationTests
         public int TestProperty1 { get; set; } = 77;
         public static int StaticProperty1 { get; set; } = 64;
         public int TestMethod1() => 12;
+        public int TestMethod2() => 13;
         public int TestMethod2(int parm1, int parm2) => parm1 * parm2;
 
         public static int StaticMethod1() => 66;

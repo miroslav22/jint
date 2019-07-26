@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -137,5 +138,45 @@ namespace Jint.IntegrationTests
             engine.Execute("var bob = function(){return 6;};bob;").GetCompletionValue().AsNetObject().Should().BeAssignableTo<FunctionInstance>();
 
         }
+
+        [Test]
+        public void OverwritingMethodWithAnother_ResultCorrect()
+        {
+            var engine = new Engine();
+
+            engine.SetValue("testobj", TypeReference.CreateTypeReference(engine, typeof(TestNetObject)));
+
+            engine.Execute("var bob = new testobj(); bob.testMethod1()").GetCompletionValue().AsNetObject().Should().Be(12);
+            engine.Execute("var bob = new testobj(); bob.testMethod2()").GetCompletionValue().AsNetObject().Should().Be(13);
+
+            engine.Execute("var bob = new testobj(); bob.testMethod1 = bob.testMethod2;  bob.testMethod1();").GetCompletionValue().AsNetObject().Should().Be(13);
+
+        }
+
+
+        [Test]
+        public void Test()
+        {
+            var engine = new Engine(o => o.DebugMode());
+
+            using (var sr = new StreamReader("c:\\temp\\polyfill.js"))
+            {
+                try
+                {
+                    engine.Execute("new Date(NaN) + ''");
+                    //engine.Execute("var symbol3 = Symbol('foo');symbol3.toString();");
+
+                    var result = engine.GetCompletionValue();
+
+                    engine.Execute(sr.ReadToEnd());
+                }
+                catch (Exception ex)
+                {
+                    var synt = engine.GetLastSyntaxNode();
+                    var location = synt.Location.Start;
+                }
+            }
+        }
     }
+
 }

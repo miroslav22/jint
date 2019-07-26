@@ -167,7 +167,7 @@ namespace Jint.Runtime.Interop
 
                 if (methods?.Count > 0)
                 {
-                    return (engine, target) => new PropertyDescriptor(new MethodInfoFunctionInstance(engine, methods.ToArray()), PropertyFlag.OnlyEnumerable);
+                    return (engine, target) => new PropertyDescriptor(new MethodInfoFunctionInstance(engine, methods.ToArray()), PropertyFlag.OnlyEnumerable) {Writable = true};
                 }
 
             }

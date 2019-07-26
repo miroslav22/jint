@@ -154,20 +154,32 @@ namespace Jint.IntegrationTests
         }
 
 
+        public delegate void LogDelegate(JsValue value);
+
         [Test]
         public void Test()
         {
             var engine = new Engine(o => o.DebugMode());
 
+            engine.SetValue("log", new LogDelegate(v =>
+            {
+
+            }));
+
             using (var sr = new StreamReader("c:\\temp\\polyfill.js"))
             {
                 try
                 {
-                    engine.Execute("var TO_STRING = 'toString';var $toString = /./[TO_STRING]; $toString.call({ source: 'a', flags: 'b' }); ");
+                    engine.Execute("Array.prototype.toString.call(1);");
+                    res = engine.GetCompletionValue();
+
+                    //engine.Execute("var TO_STRING = 'toString';var $toString = /./[TO_STRING]; $toString.call({ source: 'a', flags: 'b' }); ");
 
                     //engine.Execute("var symbol3 = Symbol('foo');symbol3.toString();");
 
-                    var res = engine.GetCompletionValue();
+                    //var res = engine.GetCompletionValue();
+
+
 
                     engine.Execute(sr.ReadToEnd());
                 }

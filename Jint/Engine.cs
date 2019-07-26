@@ -172,7 +172,7 @@ namespace Jint
             Function = FunctionConstructor.CreateFunctionConstructor(this);
             _getSetThrower = new GetSetPropertyDescriptor.ThrowerPropertyDescriptor(Function.ThrowTypeError);
 
-            Symbol = SymbolConstructor.CreateSymbolConstructor(this);
+            //Symbol = SymbolConstructor.CreateSymbolConstructor(this);
             Array = ArrayConstructor.CreateArrayConstructor(this);
             Map = MapConstructor.CreateMapConstructor(this);
             Set = SetConstructor.CreateSetConstructor(this);
